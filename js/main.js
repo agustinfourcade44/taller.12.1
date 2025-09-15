@@ -1,91 +1,62 @@
 let movies = [];
 
-// Cargar las películas cuando la página inicia (pero no mostrarlas aún)
-document.addEventListener("DOMContentLoaded", async () => {
-  const response = await fetch("https://japceibal.github.io/japflix_api/movies-data.json");
-  movies = await response.json();
+document.addEventListener("DOMContentLoaded", async function() {
+  const res = await fetch("https://japceibal.github.io/japflix_api/movies-data.json");
+  movies = await res.json();
 });
 
-// Función para mostrar estrellas según vote_average (sobre 10 → 5 estrellas)
 function getStars(vote) {
-  const stars = Math.round(vote / 2); // escala 0-10 → 0-5
+  let stars = Math.round(vote / 2);
   let html = "";
-  for (let i = 1; i <= 5; i++) {
-    html += `<span class="fa fa-star ${i <= stars ? "checked" : ""}"></span>`;
-  }
+  for (let i = 1; i <= 5; i++) html += '<span class="fa fa-star' + (i <= stars ? ' checked' : '') + '"></span>';
   return html;
 }
 
-// Evento buscar
-document.getElementById("btnBuscar").addEventListener("click", () => {
-  const query = document.getElementById("inputBuscar").value.toLowerCase().trim();
+function showMovieDetails(movie) {
+  const old = document.getElementById("movieDetail");
+  if (old) old.remove();
+
+  
+  const div = document.createElement("div");
+  div.id = "movieDetail";
+  div.style.cssText = "position:fixed;top:10%;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:20px;border-radius:10px;max-width:400px;z-index:1000;";
+  div.innerHTML = `
+    <button id="closeDetail" style="float:right;">Cerrar</button>
+    <h3>${movie.title}</h3>
+    <p>${movie.overview}</p>
+    <p><strong>Géneros:</strong> ${movie.genres.join(", ")}</p>
+    <p>Año: ${movie.release_date.split("-")[0]}</p>
+    <p>Duración: ${movie.runtime} min</p>
+    <p>Presupuesto: $${movie.budget.toLocaleString()}</p>
+    <p>Ganancias: $${movie.revenue.toLocaleString()}</p>
+  `;
+  document.body.appendChild(div);
+
+  
+  document.getElementById("closeDetail").addEventListener("click", function() {
+    div.remove();
+  });
+}
+
+document.getElementById("btnBuscar").addEventListener("click", function() {
+  const q = document.getElementById("inputBuscar").value.toLowerCase().trim();
   const lista = document.getElementById("lista");
   lista.innerHTML = "";
+  if (!q) return;
 
-  if (query === "") return;
+  movies.forEach(function(m) {
+    const title = m.title.toLowerCase();
+    const tagline = (m.tagline || "").toLowerCase();
+    const overview = (m.overview || "").toLowerCase();
+    const genres = m.genres.join(" ").toLowerCase();
 
-  const resultados = movies.filter(m =>
-    m.title.toLowerCase().includes(query) ||
-    m.tagline?.toLowerCase().includes(query) ||
-    m.overview?.toLowerCase().includes(query) ||
-    m.genres.join(" ").toLowerCase().includes(query)
-  );
-
-  resultados.forEach(movie => {
-    const li = document.createElement("li");
-    li.className = "list-group-item bg-dark text-white";
-    li.style.cursor = "pointer";
-    li.innerHTML = `
-      <h5>${movie.title}</h5>
-      <p><em>${movie.tagline || ""}</em></p>
-      <div>${getStars(movie.vote_average)}</div>
-    `;
-    li.addEventListener("click", () => showMovieDetails(movie));
-    lista.appendChild(li);
+    if (title.indexOf(q) !== -1 || tagline.indexOf(q) !== -1 || overview.indexOf(q) !== -1 || genres.indexOf(q) !== -1) {
+      const item = document.createElement("div");
+      item.className = "list-group-item bg-dark text-white";
+      item.style.cursor = "pointer";
+      item.innerHTML = '<h5>' + m.title + '</h5><p><em>' + (m.tagline || "") + '</em></p><div>' + getStars(m.vote_average) + '</div>';
+      item.addEventListener("click", function() { showMovieDetails(m); });
+      lista.appendChild(item);
+    }
   });
 });
-
-
-function showMovieDetails(movie) {
- 
-  let offcanvas = document.getElementById("offcanvasMovie");
-  if (!offcanvas) {
-    document.body.insertAdjacentHTML("beforeend", `
-      <div class="offcanvas offcanvas-top text-bg-dark" tabindex="-1" id="offcanvasMovie">
-        <div class="offcanvas-header">
-          <h5 class="offcanvas-title" id="offcanvasTitle"></h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
-        </div>
-        <div class="offcanvas-body">
-          <p id="offcanvasOverview"></p>
-          <p><strong>Géneros:</strong> <span id="offcanvasGenres"></span></p>
-          <div class="dropdown mt-3 text-end">
-  <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-    Más información
-  </button>
-  <ul class="dropdown-menu dropdown-menu-end">
-    <li><span class="dropdown-item">Año: <span id="infoYear"></span></span></li>
-    <li><span class="dropdown-item">Duración: <span id="infoRuntime"></span> min</span></li>
-    <li><span class="dropdown-item">Presupuesto: $<span id="infoBudget"></span></span></li>
-    <li><span class="dropdown-item">Ganancias: $<span id="infoRevenue"></span></span></li>
-  </ul>
-</div>
-        </div>
-      </div>
-    `);
-    offcanvas = document.getElementById("offcanvasMovie");
-  }
-
-  
-  document.getElementById("offcanvasTitle").textContent = movie.title;
-  document.getElementById("offcanvasOverview").textContent = movie.overview;
-  document.getElementById("offcanvasGenres").textContent = movie.genres.join(", ");
-  document.getElementById("infoYear").textContent = movie.release_date.split("-")[0];
-  document.getElementById("infoRuntime").textContent = movie.runtime;
-  document.getElementById("infoBudget").textContent = movie.budget.toLocaleString();
-  document.getElementById("infoRevenue").textContent = movie.revenue.toLocaleString();
-
-  
-  const bsOffcanvas = new bootstrap.Offcanvas(offcanvas);
-  bsOffcanvas.show();
-}
